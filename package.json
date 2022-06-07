@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "description": "",
+  "name": "rm-diff-consoles",
+  "description": "Removes all console.log statements in all changed files in a git repository.",
   "version": "0.0.0",
   "author": {
     "name": "Raine Revere",
@@ -13,14 +13,18 @@
   "files": [
     "build"
   ],
-  "bugs": "",
+  "bugs": "https://github.com/raineorshine/rm-diff-consoles/issues",
   "engines": {
     "node": ">=14"
   },
-  "keywords": [],
-  "homepage": "",
+  "keywords": [
+    "git",
+    "console.log",
+    "pre-commit"
+  ],
+  "homepage": "https://github.com/raineorshine/rm-diff-consoles",
   "license": "ISC",
-  "repository": "",
+  "repository": "https://github.com/raineorshine/rm-diff-consoles",
   "type": "module",
   "jest": {
     "testPathIgnorePatterns": [
