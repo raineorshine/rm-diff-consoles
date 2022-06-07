@@ -1,3 +1,6 @@
+[![npm version](https://img.shields.io/npm/v/rm-diff-consoles)](https://www.npmjs.com/package/rm-diff-consoles)
+[![build status](https://img.shields.io/github/workflow/status/raineorshine/rm-diff-consoles/Tests/main?label=tests&logo=github)](https://github.com/raineorshine/rm-diff-consoles/actions?query=workflow%3ATests+branch%3Amain)
+
 Removes all `console.log` statements from all staged files in a git repository.
 
 Helpful for removing `console.log` automatically from changed files so it does not end up in production, while not accidentally removing `console.log` from other files in the project.
