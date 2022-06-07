@@ -10,6 +10,9 @@
   "bin": {
     "rm-diff-consoles": "build/bin.js"
   },
+  "files": [
+    "build"
+  ],
   "bugs": "",
   "engines": {
     "node": ">=14"
