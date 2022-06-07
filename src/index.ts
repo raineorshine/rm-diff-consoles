@@ -15,10 +15,14 @@ export const parse = async (basePath: string, input: string) => {
       const pathResolved = path.resolve(`${basePath}/${filepath}`)
 
       const content = fileDiff.replace(/^(.*\n){5}/g, '')
+
+      // match the console.log that needs to be replaced
+      // does not match additional newlines
+      // that is better handled in the actual replacement, since it is hard to do in regex
       const matches = content
-        .match(/^.*console\.log.*/gm)
-        // remove prefixed '+' from the diff
-        ?.map(s => s.slice(1))
+        .match(/\n\+[^\n]*console\.log[^\n]*/g)
+        // remove all prefixed '+' from the diff
+        ?.map(s => s.replace(/\n\+/g, '\n'))
 
       return { filepath: pathResolved, matches: matches || [] }
     })
@@ -29,10 +33,20 @@ export const parse = async (basePath: string, input: string) => {
   // replace console.logs in each file
   const results = await Promise.all(
     files.map(async file => {
+      // read the original file with staged changes
       const original = await fs.promises.readFile(file.filepath, 'utf8')
+
+      // remove each console.log match from the original file
+      const replaced = file.matches.reduce((accum, match) => {
+        // first attempt to replace the console.log with a redundant newline
+        const replaceWithExtraNewline = accum.replace(`\n${match}\n`, '\n')
+        if (replaceWithExtraNewline.length !== accum.length) return replaceWithExtraNewline
+        // otherwise replace single line
+        return accum.replace(match, '')
+      }, original)
       return {
         ...file,
-        replaced: original.replace(/^.*console\.log.*\n/gm, ''),
+        replaced,
       }
     }),
   )
