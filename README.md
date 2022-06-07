@@ -1,8 +1,8 @@
-Removes all `console.log` statements in all staged files in a git repository.
+Removes all `console.log` statements from all staged files in a git repository.
 
 Helpful for removing `console.log` automatically from changed files so it does not end up in production, while not accidentally removing `console.log` from other files in the project.
 
-It is recommended that you use `console.log` solely for debugging, and `console.info` for printing information to the console as part of its production behavior.
+Works best when you use `console.log` solely for debugging, and `console.info` for printing information to the console as part of production behavior.
 
 ## Usage
 
@@ -12,12 +12,14 @@ npx rm-diff-consoles
 
 Tada! All your `console.log` statements have been removed.
 
-In detail:
+## Detailed Usage
 
 1. Add some `console.log` statements to one or more files in a git repository.
 2. Stage changes: `git add -A`
 3. Run `npx rm-diff-consoles` from the project's root directory.
-4. The files are overwritten and the changes are left unstaged for easy validation.
+4. The files are overwritten and the changes are left unstaged.
+
+Use your git fu to verify the changes:
 
 - Run `git diff` to see the changes.
 - Run `git checkout .` to restore the staged files.
