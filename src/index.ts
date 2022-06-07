@@ -1,6 +1,8 @@
 import fs from 'fs'
+import path from 'path'
 
-const rmDiffConsoles = (path: string, input: string) => {
+/** Parses console.logs from git diff and returns file matches and replaced content. */
+export const parse = async (basePath: string, input: string) => {
   const fileDiffs = input.split(/^diff --git /gm)
 
   // extract all the console.logs from the diff
@@ -8,13 +10,9 @@ const rmDiffConsoles = (path: string, input: string) => {
     // first entry of split is empty string since the file starts with "diff --get"
     .slice(1)
     .map(fileDiff => {
-      // parse the filename from the first line
-      const filename = fileDiff.slice(0, fileDiff.indexOf(' ')).slice(2)
-
-      // parse the line numbers
-      // const lineNumberLine = fileDiff.replace(/^(.*\n){4}/g, '')
-      // const lineColumnPairs = lineNumberLine.split(/\s*@@\s*/)[1]?.split(' ')
-      // const lineNumbers = lineColumnPairs.map(pair => +pair.split(',')[0])
+      // parse the path from the first line
+      const filepath = fileDiff.slice(0, fileDiff.indexOf(' ')).slice(2)
+      const pathResolved = path.resolve(`${basePath}${filepath}`)
 
       const content = fileDiff.replace(/^(.*\n){5}/g, '')
       const matches = content
@@ -22,20 +20,32 @@ const rmDiffConsoles = (path: string, input: string) => {
         // remove prefixed '+' from the diff
         ?.map(s => s.slice(1))
 
-      return { filename, matches: matches || [] }
+      return { filepath: pathResolved, matches: matches || [] }
     })
 
     // filter out file diffs with no console.logs
-    .filter(Boolean)
+    .filter(file => file.matches.length > 0)
 
-  const output = files
   // replace console.logs in each file
-  // const output = files.map(async file => {
-  //   const original = await fs.promises.readFile(file.filename, 'utf8')
-  //   return original.length
-  // })
+  const results = await Promise.all(
+    files.map(async file => {
+      const original = await fs.promises.readFile(file.filepath, 'utf8')
+      return {
+        ...file,
+        replaced: original.replace(/^.*console\.log.*\n/gm, ''),
+      }
+    }),
+  )
 
-  return JSON.stringify(output, null, 2)
+  return results
+}
+
+/** Parses console.logs and removes them from the original files. MODIFIES ORIGINAL FILES. */
+const rmDiffConsoles = async (basePath: string, input: string) => {
+  const parsed = await parse(basePath, input)
+  parsed.forEach(async file => {
+    await fs.promises.writeFile(file.filepath, file.replaced)
+  })
 }
 
 export default rmDiffConsoles

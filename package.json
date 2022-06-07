@@ -21,7 +21,8 @@
   "type": "module",
   "jest": {
     "testPathIgnorePatterns": [
-      "build"
+      "build",
+      "__tests__/sample"
     ]
   },
   "scripts": {

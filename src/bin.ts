@@ -2,6 +2,7 @@
 import rmDiffConsoles from './index.js'
 import { execa } from 'execa'
 
-const { stdout: diff } = await execa('git', ['diff'])
+// run git diff
+const { stdout: diff } = await execa('git', ['diff', '--staging'])
 const result = rmDiffConsoles(process.cwd(), diff)
-console.log('result', result)
+console.info('result', result)
