@@ -1,7 +1,7 @@
 {
   "name": "rm-diff-consoles",
   "description": "Removes all console.log statements in all changed files in a git repository.",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "author": {
     "name": "Raine Revere",
     "email": "raine@cybersemics.org",
