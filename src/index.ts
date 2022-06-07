@@ -31,6 +31,7 @@ export const parse = async (basePath: string, input: string) => {
     .filter(file => file.matches.length > 0)
 
   // replace console.logs in each file
+  // does not write to file, but returns result array
   const results = await Promise.all(
     files.map(async file => {
       // read the original file with staged changes
@@ -54,13 +55,17 @@ export const parse = async (basePath: string, input: string) => {
   return results
 }
 
-/** Parses console.logs and removes them from the original files. MODIFIES ORIGINAL FILES. */
-const rmDiffConsoles = async (basePath: string, input: string) => {
-  const parsed = await parse(basePath, input)
-  return parsed.map(async file => {
+/** Writes parsed replacements to disk. Returns the list of replacement results. MODIFIES ORIGINAL FILES. */
+const write = (parsed: { filepath: string; replaced: string }[]) =>
+  parsed.map(async file => {
     await fs.promises.writeFile(file.filepath, file.replaced)
     return file
   })
+
+/** Parses console.logs from a diff and removes them from the original files. MODIFIES ORIGINAL FILES. */
+const rmDiffConsoles = async (basePath: string, input: string) => {
+  const parsed = await parse(basePath, input)
+  return write(parsed)
 }
 
 export default rmDiffConsoles
