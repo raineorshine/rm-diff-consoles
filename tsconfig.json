@@ -1,4 +1,5 @@
 {
+  "exclude": ["build", "**/__tests__/*.ts"],
   "compilerOptions": {
     "allowJs": true,
     "allowSyntheticDefaultImports": true,
@@ -13,5 +14,5 @@
     "resolveJsonModule": true,
     "strict": true,
     "target": "es2022"
-  },
+  }
 }
