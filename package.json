@@ -1,0 +1,34 @@
+{
+  "name": "",
+  "description": "",
+  "version": "0.0.0",
+  "author": {
+    "name": "Raine Revere",
+    "email": "raine@cybersemics.org",
+    "url": "https://github.com/raineorshine"
+  },
+  "bin": {
+    "rm-diff-consoles": "build/bin.js"
+  },
+  "bugs": "",
+  "engines": {
+    "node": ">=14"
+  },
+  "keywords": [],
+  "homepage": "",
+  "license": "ISC",
+  "repository": "",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w"
+  },
+  "devDependencies": {
+    "@types/node": "^17.0.40",
+    "prettier": "^2.6.2",
+    "typescript": "^4.7.3"
+  },
+  "dependencies": {
+    "execa": "^6.1.0"
+  }
+}
