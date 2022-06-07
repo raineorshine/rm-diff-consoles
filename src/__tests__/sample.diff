@@ -1,0 +1,150 @@
+diff --git a/src/@types/State.ts b/src/@types/State.ts
+index 9589eb3f5b..304613cdce 100644
+--- a/src/@types/State.ts
++++ b/src/@types/State.ts
+@@ -76,6 +76,13 @@ export interface State {
+   showTopControls: boolean
+   showBreadcrumbs: boolean
+   splitPosition: number
++  /* status:
++      'disconnected'   Logged out or yet to connect to firebase, but not in explicit offline mode.
++      'connecting'     Connecting to firebase.
++      'loading'        Connected, authenticated, and waiting for first user data payload.
++      'loaded'         User data payload received (may or may not be offline).
++      'offline'        Disconnected and working in offline mode.
++    */
+   status: string
+   thoughts: ThoughtsInterface
+   toolbarOverlay?: string | null
+diff --git a/src/action-creators/userAuthenticated.ts b/src/action-creators/userAuthenticated.ts
+index f6a915aa52..a706800880 100644
+--- a/src/action-creators/userAuthenticated.ts
++++ b/src/action-creators/userAuthenticated.ts
+@@ -5,7 +5,7 @@ import { storage } from '../util/storage'
+ 
+ /** Updates local state with newly authenticated user. */
+ const userAuthenticated =
+-  (user: Firebase.User): Thunk =>
++  (user: Firebase.User, { connected }: { connected?: boolean } = {}): Thunk =>
+   (dispatch, getState) => {
+     // save the user ref and uid into state
+     const userRef = getUserRef({ ...getState(), user })
+@@ -14,7 +14,7 @@ const userAuthenticated =
+       throw new Error('Could not get userRef')
+     }
+ 
+-    dispatch(authenticate({ value: true, user }))
++    dispatch(authenticate({ value: true, user, connected }))
+ 
+     // login automatically on page load
+     requestAnimationFrame(() => {
+@@ -35,7 +35,13 @@ const userAuthenticated =
+       },
+     )
+ 
+-    dispatch(status({ value: 'loaded' }))
++    // only set status to loaded if we have connected
++    // Firebase can be locally authenticated before being connected
++    console.log('userAuthenticated')
++    console.log('  connected', connected)
++    if (connected) {
++      dispatch(status({ value: 'loaded' }))
++    }
+   }
+ 
+ export default userAuthenticated
+diff --git a/src/initialize.ts b/src/initialize.ts
+index 5cae465385..5c66d0e650 100644
+--- a/src/initialize.ts
++++ b/src/initialize.ts
+@@ -53,7 +53,10 @@ export const initFirebase = async (): Promise<void> => {
+     // this is called when the user logs in or the page refreshes when the user is already authenticated
+     firebase.auth().onAuthStateChanged((user: Firebase.User) => {
+       if (user) {
+-        store.dispatch(userAuthenticated(user))
++        const status = store.getState().status
++        console.log('initialize: onAuthStateChanged')
++        console.log('  status', status)
++        store.dispatch(userAuthenticated(user, { connected: status === 'loading' || status === 'loaded' }))
+ 
+         subscribe(user.uid, (updates: ThoughtSubscriptionUpdates) => {
+           store.dispatch(updateThoughtsFromSubscription(updates, SessionType.REMOTE))
+@@ -94,8 +97,10 @@ export const initFirebase = async (): Promise<void> => {
+         // if reconnecting from offline mode, onAuthStateChange is not called since Firebase is still authenticated, but we still need to execute the app authentication logic and subscribe to the main value event
+         // if status is loading or already loaded, we can assume onAuthStateChanged and thus userAuthenticated was already called
+         // this happens on startup when onAuthStateChange is immediately followed by a connect event
+-        if (status !== 'loading' && status !== 'loaded' && firebase.auth().currentUser) {
+-          await store.dispatch(userAuthenticated(firebase.auth().currentUser))
++        console.log('initialize: connected', connected)
++        console.log('  status', status)
++        if (status !== 'loaded' && firebase.auth().currentUser) {
++          await store.dispatch(userAuthenticated(firebase.auth().currentUser, { connected }))
+         }
+       }
+ 
+diff --git a/src/reducers/authenticate.ts b/src/reducers/authenticate.ts
+index 7d05774326..ee786e9e1e 100644
+--- a/src/reducers/authenticate.ts
++++ b/src/reducers/authenticate.ts
+@@ -2,11 +2,14 @@ import _ from 'lodash'
+ import { State, Firebase } from '../@types'
+ 
+ interface Options {
++  // used by the pullQueue to detect if the authenticated user is connected and thus able to pull
++  // detected directly by the middleware, so not needed in State
++  connected?: boolean
+   value: boolean
+   user?: Firebase.User
+ }
+ 
+-/** Sets the authenticated, autologin, loading, and user when the user has been authenticated. */
++/** Sets the authenticated, autologin, and user when the user has been authenticated. Sets status to loading or disconnected depending on authentication value. */
+ const authenticate = (state: State, { value, user }: Options) => ({
+   ...state,
+   // autologin must be stored in localStorage separately since it is not modified on every authentication
+diff --git a/src/redux-middleware/pullQueue.ts b/src/redux-middleware/pullQueue.ts
+index 44b65ed001..bc2bc6f7be 100644
+--- a/src/redux-middleware/pullQueue.ts
++++ b/src/redux-middleware/pullQueue.ts
+@@ -203,6 +203,7 @@ const pullQueueMiddleware: ThunkMiddleware<State> = ({ getState, dispatch }) =>
+ 
+   return next => async action => {
+     next(action)
++    const state = getState()
+ 
+     // reset internal state variables when clear action is dispatched
+     if (action.type === 'clear') {
+@@ -212,13 +213,13 @@ const pullQueueMiddleware: ThunkMiddleware<State> = ({ getState, dispatch }) =>
+     }
+     // Update pullQueue and flush on authenticate to force a remote fetch and make remote-only updates.
+     // Otherwise, because thoughts are previously loaded from local storage which turns off pending on the root context, a normal pull will short circuit and remote thoughts will not be loaded.
+-    else if (action.type === 'authenticate' && action.value) {
++    else if (action.type === 'authenticate' && action.value && action.connected) {
+       pullQueue = { ...pullQueue, ...initialPullQueue() }
+       // do not debounce, as forceRemote could be overwritten by other calls to the debounced function
+       updatePullQueue({ forceRemote: true })
+     }
+     // do not pull before cursor has been initialized
+-    else if (getState().cursorInitialized) {
++    else if (state.cursorInitialized) {
+       updatePullQueueDebounced()
+     }
+   }
+diff --git a/src/util/initialState.ts b/src/util/initialState.ts
+index be7b4b203a..f23fd1c0aa 100644
+--- a/src/util/initialState.ts
++++ b/src/util/initialState.ts
+@@ -124,13 +124,6 @@ export const initialState = (created: Timestamp = timestamp()) => {
+     redoPatches: [],
+     resourceCache: {},
+     rootContext: [HOME_TOKEN],
+-    /* status:
+-      'disconnected'   Logged out or yet to connect to firebase, but not in explicit offline mode.
+-      'connecting'     Connecting to firebase.
+-      'loading'        Connected, authenticated, and waiting for first user data payload.
+-      'loaded'         User data payload received (may or may not be offline).
+-      'offline'        Disconnected and working in offline mode.
+-    */
+     schemaVersion: SCHEMA_LATEST,
+     scrollPrioritized: false,
+     search: null,
