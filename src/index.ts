@@ -12,7 +12,7 @@ export const parse = async (basePath: string, input: string) => {
     .map(fileDiff => {
       // parse the path from the first line
       const filepath = fileDiff.slice(0, fileDiff.indexOf(' ')).slice(2)
-      const pathResolved = path.resolve(`${basePath}${filepath}`)
+      const pathResolved = path.resolve(`${basePath}/${filepath}`)
 
       const content = fileDiff.replace(/^(.*\n){5}/g, '')
       const matches = content
@@ -43,8 +43,9 @@ export const parse = async (basePath: string, input: string) => {
 /** Parses console.logs and removes them from the original files. MODIFIES ORIGINAL FILES. */
 const rmDiffConsoles = async (basePath: string, input: string) => {
   const parsed = await parse(basePath, input)
-  parsed.forEach(async file => {
+  return parsed.map(async file => {
     await fs.promises.writeFile(file.filepath, file.replaced)
+    return file
   })
 }
 
