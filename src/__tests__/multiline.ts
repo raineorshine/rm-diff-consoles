@@ -11,24 +11,17 @@ jest.mock('fs', () => {
   const _fs = jest.requireActual('fs')
   const path = require('path')
 
-  // define the original text of two mock files, a.js and b.js
-  // a.js has a single console.log that was added with an additional newline
-  // b.js has two console.logs and an unrelated change
+  // define the original text of a.js
+  // a.js has a multiline console.log
   // these must exactly correspond to the diff
   const mockFiles: Record<string, string> = {
     'a.js': `const a = 1
 
-console.log('a', a)
+console.log('a', {
+  a: a.toString(),
+})
 
 export default a
-`,
-    'b.js': `let b = 2
-console.log('b1', b)
-
-b++ // a real change to be committed
-console.log('b2', b)
-
-export default b
 `,
   }
 
@@ -49,30 +42,19 @@ export default b
   }
 })
 
-// the diff that corresponds to the console.logs (and unrelated changes) added to the mock files a.js and b.js
+// the diff that corresponds to the added console.log into the mock files a.js
 const diff = `diff --git a/MOCK_DIR/a.js b/MOCK_DIR/a.js
 index 4e7bb20..cf39e47 100644
 --- a/MOCK_DIR/a.js
 +++ b/MOCK_DIR/a.js
 @@ -1,3 +1,5 @@
  const a = 1
-+console.log('a', a)
-+
- 
+
++console.log('a', {
++  a: a.toString(),
++})
++ 
  export default a
-diff --git a/MOCK_DIR/b.js b/MOCK_DIR/b.js
-index 8791d11..5004448 100644
---- a/MOCK_DIR/b.js
-+++ b/MOCK_DIR/b.js
-@@ -1,3 +1,7 @@
--const b = 2
-+let b = 2
-+console.log('b1', b)
-+
-+b++ // a real change to be committed
-+console.log('b2', b)
- 
- export default b
 diff --git a/src/bin.ts b/src/bin.ts
 index 40b5d1a..54fce15 100644
 --- a/src/bin.ts
@@ -87,7 +69,7 @@ index 40b5d1a..54fce15 100644
  console.info('result', result)
 `
 
-test('replace console.logs and additional newlines in edited file', async () => {
+test.skip('replace multiline console.logs', async () => {
   await rmDiffConsoles(`/MOCK_DIR/`, diff)
   expect(mockedWrites).toEqual([
     {
@@ -95,15 +77,6 @@ test('replace console.logs and additional newlines in edited file', async () => 
       text: `const a = 1
 
 export default a
-`,
-    },
-    {
-      name: 'b.js',
-      text: `let b = 2
-
-b++ // a real change to be committed
-
-export default b
 `,
     },
   ])
